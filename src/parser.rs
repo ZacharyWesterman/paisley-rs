@@ -299,11 +299,16 @@ parser! {
 		power[x] => x,
 	}
 
-	//Power
+	//Power and slicing
 	power: Expression {
 		power[lhs] OperPower negate[rhs] => Expression {
 			span: span!(),
 			node: Expr::Pow(Box::new(lhs), Box::new(rhs)),
+		},
+
+		power[lhs] OperSlice negate[rhs] => Expression {
+			span: span!(),
+			node: Expr::Slice(Box::new(lhs), Box::new(rhs)),
 		},
 
 		negate[e] => e,
