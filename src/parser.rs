@@ -52,6 +52,10 @@ pub mod ast {
 		Search(Box<Expression>, Box<Expression>),
 		Pattern(Box<Expression>, Box<Expression>),
 		Exists(Box<Expression>),
+		Slice(Box<Expression>, Box<Expression>),
+
+		Array(Box<Vec<Expression>>),
+		Object(Box<Vec<(Expression, Expression)>>),
 
 		//List comprehension
 		ListComp(
@@ -71,9 +75,10 @@ pub mod ast {
 		Number(f64),
 		Boolean(bool),
 		Null,
-		FuncCall(Box<Expression>, Box<Vec<Expression>>),
+		FuncCall(Box<Expression>, Box<Expression>),
 		LambdaDecl(Box<String>, Box<Expression>),
 		Lambda(Box<String>),
+		Index(Box<Expression>, Box<Expression>),
 	}
 
 	#[derive(Debug)]
@@ -135,14 +140,46 @@ parser! {
 	}
 
 	expression: Expression {
+		arrayconcat[x] => Expression {
+			span: span!(),
+			node: Expr::Array(Box::new(x)),
+		},
+		objectconcat[x] => Expression {
+			span: span!(),
+			node: Expr::Object(Box::new(x)),
+		},
 		concat[x] => Expression {
 			span: span!(),
 			node: Expr::Concat(Box::new(x)),
 		},
+		Arrow => Expression {
+			span: span!(),
+			node: Expr::Object(Box::new(vec![])),
+		},
 		comprehension[x] => x,
 	}
 
-	//String concatenation is the lowest precedence
+	objectconcat: Vec<(Expression, Expression)> {
+		comprehension[lhs] Arrow comprehension[rhs] => vec![(lhs, rhs)],
+		objectconcat[mut obj] Comma comprehension[lhs] Arrow comprehension[rhs] => {
+			obj.push((lhs, rhs));
+			obj
+		}
+	}
+
+	//Array concatenation has the lowest precedence
+	arrayconcat: Vec<Expression> {
+		Comma => vec![],
+		comprehension[lhs] Comma => vec![lhs],
+		comprehension[lhs] Comma comprehension[rhs] => vec![lhs, rhs],
+		arrayconcat[lhs] Comma => lhs,
+		arrayconcat[mut lhs] Comma comprehension[rhs] => {
+			lhs.push(rhs);
+			lhs
+		},
+	}
+
+	//String concatenation has very low precedence
 	concat: Vec<Expression> {
 		comprehension[lhs] OperConcat comprehension[rhs] => vec![lhs, rhs],
 		concat[mut lhs] OperConcat comprehension[rhs] => {
@@ -150,9 +187,6 @@ parser! {
 			lhs
 		},
 	}
-
-	//Arrays
-
 
 	//List comprehension and ternary operator
 	comprehension: Expression {
@@ -172,10 +206,6 @@ parser! {
 
 		comparison[x] => x,
 	}
-
-	// partial_comp: Expr => {
-	// 	comparison[value] KwdFor ident[var] KwdIn comparison[expr] => Expr::ListComp(Box::new(value), Box::new(var), Box::new(expr), None)
-	// }
 
 	//Boolean comparison
 	comparison: Expression {
@@ -321,19 +351,17 @@ parser! {
 			node: Expr::Null,
 		},
 
-		atom[lhs] LParen param_list[rhs] RParen => Expression {
+		atom[lhs] LParen expression[rhs] RParen => Expression {
 			span: span!(),
 			node: Expr::FuncCall(Box::new(lhs), Box::new(rhs)),
 		},
 
 		atom[lhs] LParen RParen => Expression {
 			span: span!(),
-			node: Expr::FuncCall(Box::new(lhs), Box::new(vec![])),
-		},
-
-		Lambda(name) LBracket expression[expr] RBracket => Expression {
-			span: span!(),
-			node: Expr::LambdaDecl(Box::new(name), Box::new(expr)),
+			node: Expr::FuncCall(Box::new(lhs), Box::new(Expression {
+				span: span!(),
+				node: Expr::Array(Box::new(vec![])),
+			})),
 		},
 
 		Lambda(name) => Expression {
@@ -343,14 +371,14 @@ parser! {
 
 		LParen expression[a] RParen => a,
 		LBrace expression[a] RBrace => a,
-	}
 
-	param_list: Vec<Expression> {
-		param_list[mut lhs] Comma expression[rhs] => {
-			lhs.push(rhs);
-			lhs
+		atom[lhs] LBracket expression[expr] RBracket => Expression {
+			span:span!(),
+			node: match lhs.node {
+				Expr::Lambda(name) => Expr::LambdaDecl(name, Box::new(expr)),
+				_ => Expr::Index(Box::new(lhs), Box::new(expr)),
+			},
 		},
-		expression[a] => vec![a],
 	}
 }
 
