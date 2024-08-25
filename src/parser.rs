@@ -156,6 +156,7 @@ parser! {
 			span: span!(),
 			node: Expr::Object(Box::new(vec![])),
 		},
+
 		comprehension[x] => x,
 	}
 
@@ -185,6 +186,11 @@ parser! {
 		concat[mut lhs] OperConcat comprehension[rhs] => {
 			lhs.push(rhs);
 			lhs
+		},
+
+		Quote comprehension[expr] Quote => {
+			println!("{:?}", expr);
+			vec![expr]
 		},
 	}
 

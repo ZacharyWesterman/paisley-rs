@@ -88,6 +88,7 @@ pub struct Lexer<'a> {
 	ended: bool,
 	prev_token: Token,
 	deferred_token: Option<(Token, Span)>,
+	in_quote: bool,
 }
 
 impl<'a> Lexer<'a> {
@@ -100,6 +101,7 @@ impl<'a> Lexer<'a> {
 			ended: false,
 			prev_token: Token::Newline,
 			deferred_token: None,
+			in_quote: false,
 		}
 	}
 
@@ -582,7 +584,8 @@ impl<'a> Iterator for Lexer<'a> {
 				| Token::Null
 				| Token::Lambda(_)
 				| Token::LBrace
-				| Token::LParen => match self.prev_token {
+				| Token::LParen
+				| Token::Quote => match self.prev_token {
 					Token::Text(_)
 					| Token::Identifier(_)
 					| Token::Number(_)
@@ -591,12 +594,40 @@ impl<'a> Iterator for Lexer<'a> {
 					| Token::Lambda(_)
 					| Token::RBrace
 					| Token::RParen
-					| Token::RBracket => {
+					| Token::RBracket
+					| Token::Quote => {
+						let is_quote = match tok {
+							Token::Quote => true,
+							_ => false,
+						};
+						let prev_quote = match self.prev_token {
+							Token::Quote => true,
+							_ => false,
+						};
+
 						self.prev_token = tok.clone();
+
+						//Make sure quotes have OperConcat on the OUTSIDE of the string, not the inside.
+						if is_quote {
+							self.in_quote = !self.in_quote;
+						}
+
+						if (is_quote && !self.in_quote) || (prev_quote && self.in_quote) {
+							// if !self.in_quote {
+							// self.deferred_token = Some((Token::OperConcat, span.clone()));
+							return Some((tok, span));
+							// }
+						}
+
 						self.deferred_token = Some((tok.clone(), span.clone()));
 						return Some((Token::OperConcat, span));
 					}
 					_ => {
+						match tok {
+							Token::Quote => self.in_quote = !self.in_quote,
+							_ => {}
+						};
+
 						self.prev_token = tok.clone();
 						return Some((tok, span));
 					}
