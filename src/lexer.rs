@@ -11,6 +11,7 @@ pub enum Token {
 
 	//Keywords
 	KwdLet,
+	KwdInitial,
 	KwdFor,
 	KwdWhile,
 	KwdIn,
@@ -36,6 +37,7 @@ pub enum Token {
 	OperNot,
 	OperExists,
 	OperLike,
+	OperConcat,
 
 	//Values
 	Text(String),
@@ -83,6 +85,9 @@ pub struct Lexer<'a> {
 	remaining: &'a str,
 	context: &'a message::Context<'a>,
 	scopes: Vec<Scope>,
+	ended: bool,
+	prev_token: Token,
+	deferred_token: Option<(Token, Span)>,
 }
 
 impl<'a> Lexer<'a> {
@@ -92,6 +97,9 @@ impl<'a> Lexer<'a> {
 			remaining: context.source,
 			context: context,
 			scopes: vec![Scope::Default],
+			ended: false,
+			prev_token: Token::Newline,
+			deferred_token: None,
 		}
 	}
 
@@ -195,6 +203,7 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 		Scope::Default => {
 			vec![
 				r"^let\b",
+				r"^initial\b",
 				r"^for\b",
 				r"^while\b",
 				r"^in\b",
@@ -219,7 +228,7 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 				r"^\}",                   //Close expression
 				r"^\$\{",                 //Open inline command eval
 				"^\"",                    //Interpolated string marker
-				r"^'(\'|[^'])*'",         //Non-interpolated string marker
+				r"^'(\\'|[^'])*'",        //Non-interpolated string marker
 				"^[^\"'{}$ \\t\\r\\n#]+", //Anything else
 				".",                      //Sanity check
 			]
@@ -282,7 +291,6 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 				r"^\*",
 				"^/",
 				"^%",
-				"^=",
 				"^<",
 				"^<=",
 				"^>",
@@ -293,10 +301,10 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 				r"^:",
 				r"^\^",
 				r"^\.",
-				r"^!+\w*",        //Lambda
-				"^\"",            //Interpolated string marker
-				r"^'(\'|[^'])*'", //Non-interpolated string marker
-				".",              //Anything else
+				r"^!+\w*",         //Lambda
+				"^\"",             //Interpolated string marker
+				r"^'(\\'|[^'])*'", //Non-interpolated string marker
+				".",               //Anything else
 			]
 		}
 
@@ -322,6 +330,7 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 
 			//Keywords
 			r"let\b" => Token::KwdLet,
+			r"initial\b" => Token::KwdInitial,
 			r"for\b" => Token::KwdFor,
 			r"while\b" => Token::KwdWhile,
 			r"in\b" => Token::KwdIn,
@@ -360,7 +369,7 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 				//Text inside an interpolated string
 				Token::Text(parse_escape_codes(capture.to_owned()))
 			}
-			r"'(\'|[^'])*'" => {
+			r"'(\\'|[^'])*'" => {
 				//Text inside a non-interpolated string
 				Token::Text(parse_escape_codes(
 					capture[1..(capture.len() - 1)].to_string(),
@@ -472,6 +481,11 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 impl<'a> Iterator for Lexer<'a> {
 	type Item = (Token, Span);
 	fn next(&mut self) -> Option<(Token, Span)> {
+		if let Some((tok, span)) = self.deferred_token.clone() {
+			self.deferred_token = None;
+			return Some((tok, span));
+		}
+
 		loop {
 			//Grab the next token
 			let (tok, span) =
@@ -480,8 +494,19 @@ impl<'a> Iterator for Lexer<'a> {
 					let hi = self.original.len() - new_remaining.len();
 					self.remaining = new_remaining;
 					(tok, Span { lo, hi })
-				} else {
+				} else if self.ended {
 					return None;
+				} else {
+					//Always append a newline to the end of the file.
+					//This helps simplify syntax parsing.
+					self.ended = true;
+					return Some((
+						Token::Newline,
+						Span {
+							lo: self.original.len(),
+							hi: self.original.len(),
+						},
+					));
 				};
 
 			//Depending on what token we got, change the scope.
@@ -550,7 +575,35 @@ impl<'a> Iterator for Lexer<'a> {
 					continue;
 				}
 
-				tok => {
+				Token::Text(_)
+				| Token::Identifier(_)
+				| Token::Number(_)
+				| Token::Boolean(_)
+				| Token::Null
+				| Token::Lambda(_)
+				| Token::LBrace
+				| Token::LParen => match self.prev_token {
+					Token::Text(_)
+					| Token::Identifier(_)
+					| Token::Number(_)
+					| Token::Boolean(_)
+					| Token::Null
+					| Token::Lambda(_)
+					| Token::RBrace
+					| Token::RParen
+					| Token::RBracket => {
+						self.prev_token = tok.clone();
+						self.deferred_token = Some((tok.clone(), span.clone()));
+						return Some((Token::OperConcat, span));
+					}
+					_ => {
+						self.prev_token = tok.clone();
+						return Some((tok, span));
+					}
+				},
+
+				_ => {
+					self.prev_token = tok.clone();
 					return Some((tok, span));
 				}
 			}

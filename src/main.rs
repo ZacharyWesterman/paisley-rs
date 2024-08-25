@@ -5,6 +5,7 @@ use std::process::ExitCode;
 mod flags;
 mod lexer;
 mod message;
+mod parser;
 
 fn main() -> ExitCode {
 	//Disable colors globally if stderr or stdout are not TTY
@@ -41,9 +42,40 @@ fn main() -> ExitCode {
 
 	let lexer = lexer::Lexer::new(&context);
 
-	for (token, _span) in lexer.into_iter() {
-		println!("{:?}", token);
+	// for (token, _span) in lexer.into_iter() {
+	// 	println!("{:?}", token);
+	// }
+
+	//Read input, splitting into tokens as it's read.
+	let ast = match parser::parse(lexer) {
+		Err(e) => {
+			match e.0 {
+				None => {
+					//We hit EOF
+					message::error(
+						format!("{}", "Unexpected end of file"),
+						None,
+						Some(&context),
+					);
+				}
+				Some(s) => {
+					message::error(format!("{}", e.1), Some(s.1), Some(&context));
+				}
+			};
+
+			None
+		}
+		Ok(program) => Some(program),
+	};
+
+	if message::errored() {
+		message::abort();
+		return ExitCode::FAILURE;
 	}
+
+	let ast = ast.unwrap();
+
+	println!("{}", parser::pretty(&ast));
 
 	ExitCode::SUCCESS
 }
