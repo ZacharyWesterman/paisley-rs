@@ -56,6 +56,7 @@ pub enum Token {
 	Arrow,
 	Semicolon,
 	Dot,
+	Lambda(String),
 
 	//Operators
 	OperPlus,
@@ -291,6 +292,8 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 				r"^\&",
 				r"^:",
 				r"^\^",
+				r"^\.",
+				r"^!+\w*",        //Lambda
 				"^\"",            //Interpolated string marker
 				r"^'(\'|[^'])*'", //Non-interpolated string marker
 				".",              //Anything else
@@ -435,6 +438,7 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 			"=>" => Token::Arrow,
 			";" => Token::Semicolon,
 			r"\." => Token::Dot,
+			r"!+\w*" => Token::Lambda(capture.to_owned()),
 
 			//Operators
 			r"\+" => Token::OperPlus,
