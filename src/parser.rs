@@ -15,6 +15,8 @@ pub mod ast {
 	#[derive(Debug)]
 	pub enum Stmt {
 		Command(Box<Vec<Expression>>),
+		VarDecl(Box<Vec<Ident>>, Box<Statement>),
+		Subroutine(Box<String>, Box<Program>),
 	}
 
 	#[derive(Debug)]
@@ -130,6 +132,18 @@ parser! {
 		expression[e] Newline => Statement {
 			span: span!(),
 			node: Stmt::Command(Box::new(vec![e])),
+		},
+
+		KwdSubroutine Text(name) program[pgm] KwdEnd => Statement {
+			span: span!(),
+			node: Stmt::Subroutine(Box::new(name), Box::new(pgm)),
+		},
+
+		//Variable declarations
+		//This needs to allow nultiple var assignment???
+		KwdLet ident[name] OperAssign statement[stmt] => Statement {
+			span: span!(),
+			node: Stmt::VarDecl(Box::new(vec![name]), Box::new(stmt)),
 		},
 	}
 
