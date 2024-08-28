@@ -140,21 +140,17 @@ parser! {
 	}
 
 	expression: Expression {
-		arrayconcat[x] => Expression {
-			span: span!(),
-			node: Expr::Array(Box::new(x)),
-		},
-		objectconcat[x] => Expression {
-			span: span!(),
-			node: Expr::Object(Box::new(x)),
-		},
+		// arrayconcat[x] => Expression {
+		// 	span: span!(),
+		// 	node: Expr::Array(Box::new(x)),
+		// },
+		// objectconcat[x] => Expression {
+		// 	span: span!(),
+		// 	node: Expr::Object(Box::new(x)),
+		// },
 		concat[x] => Expression {
 			span: span!(),
 			node: Expr::Concat(Box::new(x)),
-		},
-		Arrow => Expression {
-			span: span!(),
-			node: Expr::Object(Box::new(vec![])),
 		},
 
 		comprehension[x] => x,
@@ -171,9 +167,7 @@ parser! {
 	//Array concatenation has the lowest precedence
 	arrayconcat: Vec<Expression> {
 		Comma => vec![],
-		comprehension[lhs] Comma => vec![lhs],
 		comprehension[lhs] Comma comprehension[rhs] => vec![lhs, rhs],
-		arrayconcat[lhs] Comma => lhs,
 		arrayconcat[mut lhs] Comma comprehension[rhs] => {
 			lhs.push(rhs);
 			lhs
@@ -186,11 +180,6 @@ parser! {
 		concat[mut lhs] OperConcat comprehension[rhs] => {
 			lhs.push(rhs);
 			lhs
-		},
-
-		Quote comprehension[expr] Quote => {
-			println!("{:?}", expr);
-			vec![expr]
 		},
 	}
 
@@ -380,8 +369,63 @@ parser! {
 			node: Expr::Lambda(Box::new(name)),
 		},
 
+		//Arrays
+		LBrace arrayconcat[a] RBrace => Expression {
+			span: span!(),
+			node: Expr::Array(Box::new(a)),
+		},
+		LBrace arrayconcat[a] Comma RBrace => Expression {
+			span: span!(),
+			node: Expr::Array(Box::new(a)),
+		},
+		LParen arrayconcat[a] RParen => Expression {
+			span: span!(),
+			node: Expr::Array(Box::new(a)),
+		},
+		LParen arrayconcat[a] Comma RParen => Expression {
+			span: span!(),
+			node: Expr::Array(Box::new(a)),
+		},
+
+		//Objects
+		LBrace objectconcat[a] RBrace => Expression {
+			span: span!(),
+			node: Expr::Object(Box::new(a)),
+		},
+		LBrace objectconcat[a] Comma RBrace => Expression {
+			span: span!(),
+			node: Expr::Object(Box::new(a)),
+		},
+		LParen objectconcat[a] RParen => Expression {
+			span: span!(),
+			node: Expr::Object(Box::new(a)),
+		},
+		LParen objectconcat[a] Comma RParen => Expression {
+			span: span!(),
+			node: Expr::Object(Box::new(a)),
+		},
+		LBrace Arrow RBrace => Expression {
+			span: span!(),
+			node: Expr::Object(Box::new(vec![])),
+		},
+		LParen Arrow RParen => Expression {
+			span: span!(),
+			node: Expr::Object(Box::new(vec![])),
+		},
+		LBrace Arrow Comma RBrace => Expression {
+			span: span!(),
+			node: Expr::Object(Box::new(vec![])),
+		},
+		LParen Arrow Comma RParen => Expression {
+			span: span!(),
+			node: Expr::Object(Box::new(vec![])),
+		},
+
+
 		LParen expression[a] RParen => a,
 		LBrace expression[a] RBrace => a,
+
+		Quote expression[a] Quote => a,
 
 		atom[lhs] LBracket expression[expr] RBracket => Expression {
 			span:span!(),
