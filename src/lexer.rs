@@ -310,9 +310,22 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 			]
 		}
 
-		_ => {
-			panic!("WE CAN'T HANDLE THIS SCOPE!!!");
-		}
+		Scope::Command => vec![
+			r"^gosub\b",
+			r"^[ \t\r]",              //Whitespace
+			r"^[\n;]",                //Line endings
+			r"^#.*",                  //Comments
+			r"^\{",                   //Open expression
+			r"^\}",                   //Close expression
+			r"^\$\{",                 //Open inline command eval
+			"^\"",                    //Interpolated string marker
+			r"^'(\\'|[^'])*'",        //Non-interpolated string marker
+			"^[^\"'{}$ \\t\\r\\n#]+", //Anything else
+			".",                      //Sanity check
+		],
+		// _ => {
+		// 	panic!("WE CAN'T HANDLE THIS SCOPE!!!");
+		// }
 	})
 	.iter()
 	.map(|s| Regex::new(s).unwrap())
@@ -585,7 +598,8 @@ impl<'a> Iterator for Lexer<'a> {
 				| Token::Lambda(_)
 				| Token::LBrace
 				| Token::LParen
-				| Token::Quote => match self.prev_token {
+				| Token::Quote
+				| Token::Command => match self.prev_token {
 					Token::Text(_)
 					| Token::Identifier(_)
 					| Token::Number(_)

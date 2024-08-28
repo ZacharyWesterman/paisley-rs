@@ -79,6 +79,7 @@ pub mod ast {
 		LambdaDecl(Box<String>, Box<Expression>),
 		Lambda(Box<String>),
 		Index(Box<Expression>, Box<Expression>),
+		InlineCommand(Box<Expression>),
 	}
 
 	#[derive(Debug)]
@@ -140,14 +141,6 @@ parser! {
 	}
 
 	expression: Expression {
-		// arrayconcat[x] => Expression {
-		// 	span: span!(),
-		// 	node: Expr::Array(Box::new(x)),
-		// },
-		// objectconcat[x] => Expression {
-		// 	span: span!(),
-		// 	node: Expr::Object(Box::new(x)),
-		// },
 		concat[x] => Expression {
 			span: span!(),
 			node: Expr::Concat(Box::new(x)),
@@ -424,6 +417,10 @@ parser! {
 
 		LParen expression[a] RParen => a,
 		LBrace expression[a] RBrace => a,
+		Command expression[a] RBrace => Expression{
+			span: span!(),
+			node: Expr::InlineCommand(Box::new(a)),
+		},
 
 		Quote expression[a] Quote => a,
 
