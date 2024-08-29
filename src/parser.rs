@@ -15,7 +15,7 @@ pub mod ast {
 	#[derive(Debug)]
 	pub enum Stmt {
 		Command(Box<Vec<Expression>>),
-		VarDecl(Box<Vec<Ident>>, Box<Statement>),
+		VarDecl(bool, Box<Vec<Ident>>, Box<Statement>),
 		Subroutine(Box<String>, Box<Program>),
 	}
 
@@ -141,10 +141,23 @@ parser! {
 		},
 
 		//Variable declarations
-		//This needs to allow nultiple var assignment???
-		KwdLet ident[name] OperAssign statement[stmt] => Statement {
+		KwdLet identlist[vars] OperAssign statement[stmt] => Statement {
 			span: span!(),
-			node: Stmt::VarDecl(Box::new(vec![name]), Box::new(stmt)),
+			node: Stmt::VarDecl(false, Box::new(vars), Box::new(stmt)),
+		},
+
+		//"initial x = expr" only allows initializing a single variable at a time.
+		KwdInitial ident[var] OperAssign statement[stmt] => Statement {
+			span: span!(),
+			node: Stmt::VarDecl(true, Box::new(vec![var]), Box::new(stmt)),
+		},
+	}
+
+	identlist: Vec<Ident> {
+		ident[x] => vec![x],
+		identlist[mut lhs] OperConcat ident[rhs] => {
+			lhs.push(rhs);
+			lhs
 		},
 	}
 
