@@ -77,11 +77,12 @@ pub mod ast {
 		Number(f64),
 		Boolean(bool),
 		Null,
-		FuncCall(Box<Expression>, Box<Expression>),
+		FuncCall(Box<Ident>, Box<Expression>),
 		LambdaDecl(Box<String>, Box<Expression>),
 		Lambda(Box<String>),
 		Index(Box<Expression>, Box<Expression>),
 		InlineCommand(Box<Expression>),
+		DotIndex(Box<Expression>, Box<Expression>),
 	}
 
 	#[derive(Debug)]
@@ -333,11 +334,6 @@ parser! {
 
 	//AST rules for any node that can be a single value in an expression.
 	atom: Expression {
-		Identifier(i) => Expression {
-			span: span!(),
-			node: Expr::Variable(i),
-		},
-
 		Text(value) => Expression {
 			span: span!(),
 			node: Expr::String(value),
@@ -356,19 +352,6 @@ parser! {
 		Null => Expression {
 			span: span!(),
 			node: Expr::Null,
-		},
-
-		atom[lhs] LParen expression[rhs] RParen => Expression {
-			span: span!(),
-			node: Expr::FuncCall(Box::new(lhs), Box::new(rhs)),
-		},
-
-		atom[lhs] LParen RParen => Expression {
-			span: span!(),
-			node: Expr::FuncCall(Box::new(lhs), Box::new(Expression {
-				span: span!(),
-				node: Expr::Array(Box::new(vec![])),
-			})),
 		},
 
 		Lambda(name) => Expression {
@@ -444,6 +427,53 @@ parser! {
 				Expr::Lambda(name) => Expr::LambdaDecl(name, Box::new(expr)),
 				_ => Expr::Index(Box::new(lhs), Box::new(expr)),
 			},
+		},
+
+		atom[lhs] Dot funcvar[rhs] => Expression {
+			span: span!(),
+			node: match rhs.node {
+				Expr::FuncCall(funcname, mut func_expr) => Expr::FuncCall(funcname, {
+					func_expr.node = match func_expr.node {
+						Expr::Array(mut params) => {
+							params.insert(0, lhs);
+							Expr::Array(params)
+						},
+						_ => panic!("In dot func call, params are not an array?!"),
+					};
+
+					func_expr
+				}),
+				_ => Expr::DotIndex(Box::new(lhs), Box::new(rhs)),
+			},
+		},
+
+		funcvar[x] => x,
+	}
+
+	funcvar: Expression {
+		Identifier(i) => Expression {
+			span: span!(),
+			node: Expr::Variable(i),
+		},
+
+		ident[lhs] LParen expression[rhs] RParen => Expression {
+			span: span!(),
+			node: Expr::FuncCall(Box::new(lhs), Box::new(match rhs.node {
+				Expr::Array(_) => rhs,
+
+				_ => Expression {
+					span: span!(),
+					node: Expr::Array(Box::new(vec![rhs])),
+				},
+			})),
+		},
+
+		ident[lhs] LParen RParen => Expression {
+			span: span!(),
+			node: Expr::FuncCall(Box::new(lhs), Box::new(Expression {
+				span: span!(),
+				node: Expr::Array(Box::new(vec![])),
+			})),
 		},
 	}
 }

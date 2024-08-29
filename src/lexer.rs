@@ -619,6 +619,14 @@ impl<'a> Iterator for Lexer<'a> {
 							_ => false,
 						};
 
+						let is_funccall = match tok {
+							Token::LParen => match self.prev_token {
+								Token::Identifier(_) => true,
+								_ => false,
+							},
+							_ => false,
+						};
+
 						self.prev_token = tok.clone();
 
 						//Make sure quotes have OperConcat on the OUTSIDE of the string, not the inside.
@@ -626,11 +634,11 @@ impl<'a> Iterator for Lexer<'a> {
 							self.in_quote = !self.in_quote;
 						}
 
-						if (is_quote && !self.in_quote) || (prev_quote && self.in_quote) {
-							// if !self.in_quote {
-							// self.deferred_token = Some((Token::OperConcat, span.clone()));
+						if is_funccall
+							|| (is_quote && !self.in_quote)
+							|| (prev_quote && self.in_quote)
+						{
 							return Some((tok, span));
-							// }
 						}
 
 						self.deferred_token = Some((tok.clone(), span.clone()));
