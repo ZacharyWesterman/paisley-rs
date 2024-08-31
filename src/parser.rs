@@ -15,8 +15,17 @@ pub mod ast {
 	#[derive(Debug)]
 	pub enum Stmt {
 		Command(Box<Vec<Expression>>),
-		VarDecl(bool, Box<Vec<Ident>>, Box<Statement>),
+		VarDecl(bool, Box<Vec<Ident>>, Option<Box<Statement>>),
 		Subroutine(Box<String>, Box<Program>),
+		While(Box<Expression>, Box<Program>),
+		For(Box<Ident>, Box<Expression>, Box<Program>),
+		ForKV(Box<Ident>, Box<Ident>, Box<Expression>, Box<Program>),
+		Break(i64),
+		Continue(i64),
+		If(Box<Expression>, Box<Program>, Box<Program>),
+		Match(Box<Expression>, Box<Program>, Box<Program>),
+		Gosub(Box<Expression>),
+		Define(Box<Expression>),
 	}
 
 	#[derive(Debug)]
@@ -130,11 +139,8 @@ parser! {
 	}
 
 	statement: Statement {
-		expression[e] Newline => Statement {
-			span: span!(),
-			node: Stmt::Command(Box::new(vec![e])),
-		},
 
+		//Subroutine declarations
 		KwdSubroutine Text(name) program[pgm] KwdEnd => Statement {
 			span: span!(),
 			node: Stmt::Subroutine(Box::new(name), Box::new(pgm)),
@@ -143,13 +149,72 @@ parser! {
 		//Variable declarations
 		KwdLet identlist[vars] OperAssign statement[stmt] => Statement {
 			span: span!(),
-			node: Stmt::VarDecl(false, Box::new(vars), Box::new(stmt)),
+			node: Stmt::VarDecl(false, Box::new(vars), Some(Box::new(stmt))),
+		},
+		KwdLet identlist[vars] => Statement {
+			span: span!(),
+			node: Stmt::VarDecl(false, Box::new(vars), None),
 		},
 
 		//"initial x = expr" only allows initializing a single variable at a time.
 		KwdInitial ident[var] OperAssign statement[stmt] => Statement {
 			span: span!(),
-			node: Stmt::VarDecl(true, Box::new(vec![var]), Box::new(stmt)),
+			node: Stmt::VarDecl(true, Box::new(vec![var]), Some(Box::new(stmt))),
+		},
+
+		//Loops
+		KwdWhile expression[expr] KwdDo program[pgm] KwdEnd => Statement {
+			span: span!(),
+			node: Stmt::While(Box::new(expr), Box::new(pgm)),
+		},
+
+		KwdFor ident[var] KwdIn expression[expr] KwdDo program[pgm] KwdEnd => Statement {
+			span: span!(),
+			node: Stmt::For(Box::new(var), Box::new(expr), Box::new(pgm)),
+		},
+
+		KwdFor ident[var1] ident[var2] KwdIn expression[expr] KwdDo program[pgm] KwdEnd => Statement {
+			span: span!(),
+			node: Stmt::ForKV(Box::new(var1), Box::new(var2), Box::new(expr), Box::new(pgm)),
+		},
+
+		//Single-line statements
+		KwdBreak Newline => Statement {
+			span: span!(),
+			node: Stmt::Break(1),
+		},
+		KwdBreak Number(loop_count) Newline => Statement {
+			span: span!(),
+			node: Stmt::Break(loop_count as i64),
+		},
+
+		KwdContinue Newline => Statement {
+			span: span!(),
+			node: Stmt::Break(1),
+		},
+		KwdContinue Number(loop_count) Newline => Statement {
+			span: span!(),
+			node: Stmt::Continue(loop_count as i64),
+		},
+
+		KwdDefine expression[expr] Newline => Statement {
+			span: span!(),
+			node: Stmt::Define(Box::new(expr)),
+		},
+
+		KwdGosub expression[expr] Newline => Statement {
+			span: span!(),
+			node: Stmt::Gosub(Box::new(expr)),
+		},
+
+		//Commands
+		command[x] Newline => x,
+	}
+
+	command: Statement {
+		expression[e] => Statement {
+			span: span!(),
+			node: Stmt::Command(Box::new(vec![e])),
 		},
 	}
 

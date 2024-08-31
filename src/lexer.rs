@@ -123,6 +123,7 @@ pub enum Scope {
 	String,
 	Expression,
 	Command,
+	LoopVars,
 }
 
 fn parse_escape_codes(text: String) -> String {
@@ -323,9 +324,39 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 			"^[^\"'{}$ \\t\\r\\n#]+", //Anything else
 			".",                      //Sanity check
 		],
-		// _ => {
-		// 	panic!("WE CAN'T HANDLE THIS SCOPE!!!");
-		// }
+
+		Scope::LoopVars => vec![
+			r"^let\b",
+			r"^initial\b",
+			r"^for\b",
+			r"^while\b",
+			r"^in\b",
+			r"^do\b",
+			r"^match\b",
+			r"^if\b",
+			r"^then\b",
+			r"^elif\b",
+			r"^else\b",
+			r"^subroutine\b",
+			r"^gosub\b",
+			r"^end\b",
+			r"^return\b",
+			r"^break\b",
+			r"^continue\b",
+			r"^stop\b",
+			r"^define\b",
+			r"^[ \t\r]",               //Whitespace
+			r"^[\n;]",                 //Line endings
+			r"^#.*",                   //Comments
+			r"^\{",                    //Open expression
+			r"^\}",                    //Close expression
+			r"^\$\{",                  //Open inline command eval
+			"^\"",                     //Interpolated string marker
+			r"^'(\\'|[^'])*'",         //Non-interpolated string marker
+			"^[a-zA-Z_][a-zA-Z_0-9]*", //Identifiers
+			"^[^\"'{}$ \\t\\r\\n#]+",  //Anything else
+			".",                       //Sanity check
+		],
 	})
 	.iter()
 	.map(|s| Regex::new(s).unwrap())
@@ -548,6 +579,13 @@ impl<'a> Iterator for Lexer<'a> {
 					_ => {}
 				},
 
+				Scope::LoopVars => match tok {
+					Token::KwdIn => {
+						self.scopes.pop();
+					}
+					_ => {}
+				},
+
 				s => match tok {
 					Token::Command => self.scopes.push(Scope::Command),
 					Token::LBrace => self.scopes.push(Scope::Expression),
@@ -559,6 +597,7 @@ impl<'a> Iterator for Lexer<'a> {
 						_ => self.scopes.push(Scope::String),
 					},
 					Token::KwdLet => self.scopes.push(Scope::Assignment),
+					Token::KwdInitial => self.scopes.push(Scope::Assignment),
 
 					Token::Newline => {
 						if self.scopes.len() > 1 {
@@ -571,6 +610,11 @@ impl<'a> Iterator for Lexer<'a> {
 							}
 						}
 					}
+
+					Token::KwdFor => {
+						self.scopes.push(Scope::LoopVars);
+					}
+
 					_ => {}
 				},
 			};
