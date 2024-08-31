@@ -22,7 +22,7 @@ pub mod ast {
 		ForKV(Box<Ident>, Box<Ident>, Box<Expression>, Box<Program>),
 		Break(i64),
 		Continue(i64),
-		If(Box<Expression>, Box<Program>, Box<Program>),
+		If(Box<Expression>, Option<Box<Program>>, Option<Box<Program>>),
 		Match(Box<Expression>, Box<Program>, Box<Program>),
 		Gosub(Box<Expression>),
 		Define(Box<Expression>),
@@ -207,8 +207,32 @@ parser! {
 			node: Stmt::Gosub(Box::new(expr)),
 		},
 
+		KwdIf expression[condition] KwdThen program[true_branch] conditional_else[false_branch] => Statement {
+			span: span!(),
+			node: Stmt::If(Box::new(condition), Some(Box::new(true_branch)), false_branch),
+		},
+
+		KwdIf expression[condition] KwdElse program[false_branch] KwdEnd => Statement {
+			span: span!(),
+			node: Stmt::If(Box::new(condition), None, Some(Box::new(false_branch))),
+		},
+
 		//Commands
 		command[x] Newline => x,
+	}
+
+	conditional_else: Option<Box<Program>> {
+		KwdEnd => None,
+		KwdElse program[pgm] KwdEnd => Some(Box::new(pgm)),
+
+		KwdElif expression[condition] KwdThen program[true_branch] conditional_else[false_branch] => Some(Box::new(Program {
+			stmts: vec![
+				Statement {
+					span: span!(),
+					node: Stmt::If(Box::new(condition), Some(Box::new(true_branch)), false_branch),
+				}
+			],
+		})),
 	}
 
 	command: Statement {
