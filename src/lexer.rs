@@ -699,6 +699,11 @@ impl<'a> Iterator for Lexer<'a> {
 					}
 				},
 
+				Token::KwdEnd => {
+					self.deferred_token = Some((tok, span.clone()));
+					return Some((Token::Newline, span));
+				}
+
 				_ => {
 					self.prev_token = tok.clone();
 					return Some((tok, span));

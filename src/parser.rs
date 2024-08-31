@@ -23,7 +23,7 @@ pub mod ast {
 		Break(i64),
 		Continue(i64),
 		If(Box<Expression>, Option<Box<Program>>, Option<Box<Program>>),
-		Match(Box<Expression>, Box<Program>, Box<Program>),
+		Match(Box<Expression>, Box<Vec<Statement>>, Option<Box<Program>>),
 		Gosub(Box<Expression>),
 		Define(Box<Expression>),
 	}
@@ -207,14 +207,23 @@ parser! {
 			node: Stmt::Gosub(Box::new(expr)),
 		},
 
+		//Conditionals
 		KwdIf expression[condition] KwdThen program[true_branch] conditional_else[false_branch] => Statement {
 			span: span!(),
 			node: Stmt::If(Box::new(condition), Some(Box::new(true_branch)), false_branch),
 		},
-
 		KwdIf expression[condition] KwdElse program[false_branch] KwdEnd => Statement {
 			span: span!(),
 			node: Stmt::If(Box::new(condition), None, Some(Box::new(false_branch))),
+		},
+
+		KwdMatch expression[expr] KwdDo if_list[conditions] KwdElse program[no_match_branch] KwdEnd => Statement {
+			span: span!(),
+			node: Stmt::Match(Box::new(expr), Box::new(conditions), Some(Box::new(no_match_branch))),
+		},
+		KwdMatch expression[expr] KwdDo if_list[conditions] KwdEnd => Statement {
+			span: span!(),
+			node: Stmt::Match(Box::new(expr), Box::new(conditions), None),
 		},
 
 		//Commands
@@ -233,6 +242,19 @@ parser! {
 				}
 			],
 		})),
+	}
+
+	if_list: Vec<Statement> {
+		=> vec![],
+		if_list[mut list] KwdIf expression[condition] KwdThen program[true_branch] KwdEnd => {
+			list.push(Statement {
+				span: span!(),
+				node: Stmt::If(Box::new(condition), Some(Box::new(true_branch)), None),
+			});
+
+			list
+		}
+		if_list[list] Newline => list,
 	}
 
 	command: Statement {
