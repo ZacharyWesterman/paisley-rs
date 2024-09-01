@@ -32,8 +32,9 @@ fn main() -> ExitCode {
 		};
 		options.input.to_str().unwrap()
 	}
-	.to_string()
-	.replace("\t", " "); //For easy formatting in error reporting, replace all tabs with spaces.
+	.to_string();
+
+	s = s.replace("\t", " "); //For easy formatting in error reporting, replace all tabs with spaces.
 
 	let context = message::Context {
 		filename: &filename,
