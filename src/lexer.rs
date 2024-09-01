@@ -29,6 +29,7 @@ pub enum Token {
 	KwdContinue,
 	KwdStop,
 	KwdDefine,
+	KwdRequire,
 
 	//Keyword operators
 	OperOr,
@@ -224,6 +225,7 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 				r"^continue\b",
 				r"^stop\b",
 				r"^define\b",
+				r"^require\b",
 				r"^[ \t\r]",              //Whitespace
 				r"^[\n;]",                //Line endings
 				r"^#.*",                  //Comments
@@ -345,6 +347,7 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 			r"^continue\b",
 			r"^stop\b",
 			r"^define\b",
+			r"^require\b",
 			r"^[ \t\r]",               //Whitespace
 			r"^[\n;]",                 //Line endings
 			r"^#.*",                   //Comments
@@ -394,6 +397,7 @@ fn next_token(text: &str, scope: Scope) -> Option<(Token, &str)> {
 			r"continue\b" => Token::KwdContinue,
 			r"stop\b" => Token::KwdStop,
 			r"define\b" => Token::KwdDefine,
+			r"require\b" => Token::KwdRequire,
 
 			//Keyword operators
 			r"exists\b" => Token::OperExists,

@@ -26,6 +26,7 @@ pub mod ast {
 		Match(Box<Expression>, Box<Vec<Statement>>, Option<Box<Program>>),
 		Gosub(Box<Expression>),
 		Define(Box<Expression>),
+		Require(Box<Expression>),
 	}
 
 	#[derive(Debug)]
@@ -200,6 +201,11 @@ parser! {
 		KwdDefine expression[expr] Newline => Statement {
 			span: span!(),
 			node: Stmt::Define(Box::new(expr)),
+		},
+
+		KwdRequire expression[expr] Newline => Statement {
+			span: span!(),
+			node: Stmt::Require(Box::new(expr)),
 		},
 
 		KwdGosub expression[expr] Newline => Statement {
