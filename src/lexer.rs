@@ -79,6 +79,7 @@ pub enum Token {
 	OperSlice,
 
 	Quote,
+	CommandConcat,
 }
 
 pub struct Lexer<'a> {
@@ -690,7 +691,10 @@ impl<'a> Iterator for Lexer<'a> {
 						}
 
 						self.deferred_token = Some((tok.clone(), span.clone()));
-						return Some((Token::OperConcat, span));
+						return match self.this_scope() {
+							Scope::Default | Scope::Command => Some((Token::CommandConcat, span)),
+							_ => Some((Token::OperConcat, span)),
+						};
 					}
 					_ => {
 						match tok {

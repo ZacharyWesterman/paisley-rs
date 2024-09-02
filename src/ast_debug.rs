@@ -1,5 +1,4 @@
 use colored::Colorize;
-use regex::Regex;
 use std::fmt;
 
 use crate::parser::ast::*;
@@ -27,7 +26,6 @@ impl PrintAST for Program {
 impl PrintAST for Statement {
 	fn print(&self, indent: usize) -> String {
 		let indent1 = "  ".repeat(indent + 1);
-		let indent2 = "  ".repeat(indent + 2);
 
 		"  ".repeat(indent)
 			// + format!("({},{}) ", self.span.lo, self.span.hi).as_str()
@@ -62,7 +60,14 @@ impl PrintAST for Statement {
 						None => ", do nothing\n".blue().to_string(),
 					},
 				),
-				Stmt::Command(expression) => "COMMAND\n".to_string(),
+				Stmt::Command(expression) => format!(
+					"{}\n{}",
+					"run command".yellow(),
+					expression.iter()
+						.map(|s| s.print(indent + 1))
+						.reduce(|a,b| format!("{}{}", a,b))
+						.unwrap_or(String::new())
+				),
 				_ => panic!("Unknown statement????"),
 			}
 			.as_str()
@@ -72,7 +77,32 @@ impl PrintAST for Statement {
 impl PrintAST for Expression {
 	fn print(&self, indent: usize) -> String {
 		"  ".repeat(indent)
-		// + format!("({},{}) ", self.span.lo, self.span.hi).as_str()
-		+ "ERR\n"
+			+ match &self.node {
+				Expr::String(value) => format!("string: \"{}\"\n", value),
+				Expr::Number(value) => format!("number: {}\n", value),
+				Expr::Boolean(value) => {
+					format!("boolean: {}\n", if *value { "true" } else { "false" })
+				}
+				Expr::Null => "null\n".to_string(),
+				Expr::Variable(name) => format!("variable: {}\n", name),
+				Expr::Concat(items) => format!(
+					"concat\n{}",
+					items
+						.iter()
+						.map(|s| s.print(indent + 1))
+						.reduce(|a, b| format!("{}{}", a, b))
+						.unwrap_or(String::new()),
+				),
+				Expr::Array(items) => format!(
+					"array\n{}",
+					items
+						.iter()
+						.map(|s| s.print(indent + 1))
+						.reduce(|a, b| format!("{}{}", a, b))
+						.unwrap_or(String::new()),
+				),
+				_ => "ERR\n".to_string(),
+			}
+			.as_str()
 	}
 }

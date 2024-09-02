@@ -198,14 +198,20 @@ parser! {
 			node: Stmt::Continue(loop_count as i64),
 		},
 
-		KwdDefine expression[expr] Newline => Statement {
+		KwdDefine command[expr] Newline => Statement {
 			span: span!(),
-			node: Stmt::Define(Box::new(expr)),
+			node: Stmt::Define(Box::new(Expression {
+				span: span!(),
+				node: Expr::Array(Box::new(expr)),
+			})),
 		},
 
-		KwdRequire expression[expr] Newline => Statement {
+		KwdRequire command[expr] Newline => Statement {
 			span: span!(),
-			node: Stmt::Require(Box::new(expr)),
+			node: Stmt::Require(Box::new(Expression {
+				span: span!(),
+				node: Expr::Array(Box::new(expr)),
+			})),
 		},
 
 		KwdGosub expression[expr] Newline => Statement {
@@ -233,7 +239,10 @@ parser! {
 		},
 
 		//Commands
-		command[x] Newline => x,
+		command[x] Newline => Statement {
+			span: span!(),
+			node: Stmt::Command(Box::new(x)),
+		},
 	}
 
 	conditional_else: Option<Box<Program>> {
@@ -263,10 +272,12 @@ parser! {
 		if_list[list] Newline => list,
 	}
 
-	command: Statement {
-		expression[e] => Statement {
-			span: span!(),
-			node: Stmt::Command(Box::new(vec![e])),
+	command: Vec<Expression> {
+		expression[e] => vec![e],
+
+		command[mut lhs] CommandConcat expression[rhs] => {
+			lhs.push(rhs);
+			lhs
 		},
 	}
 
