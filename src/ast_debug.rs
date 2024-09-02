@@ -28,7 +28,6 @@ impl PrintAST for Statement {
 		let indent1 = "  ".repeat(indent + 1);
 
 		"  ".repeat(indent)
-			// + format!("({},{}) ", self.span.lo, self.span.hi).as_str()
 			+ match &self.node {
 				Stmt::Match(expr, branches, no_match) => {
 					format!(
@@ -36,36 +35,43 @@ impl PrintAST for Statement {
 						"match".yellow(),
 						expr.print(indent + 1),
 						(indent1.to_string() + "branches\n").blue(),
-						branches.iter().map(|s| s.print(indent+2)).reduce(|a,b| format!("{}{}", a, b)).unwrap_or(String::new()),
+						branches
+							.iter()
+							.map(|s| s.print(indent + 2))
+							.reduce(|a, b| format!("{}{}", a, b))
+							.unwrap_or(String::new()),
 						(indent1.to_string() + "on no match").blue(),
 						match no_match {
-							Some(x) => "\n".to_string() + &x.print(indent+2),
+							Some(x) => "\n".to_string() + &x.print(indent + 2),
 							None => ", do nothing\n".blue().to_string(),
 						},
 					)
 				}
-				Stmt::Require(expr) => format!("{}\n{}", "require".yellow(), expr.print(indent + 1)),
+				Stmt::Require(expr) => {
+					format!("{}\n{}", "require".yellow(), expr.print(indent + 1))
+				}
 				Stmt::If(condition, true_branch, false_branch) => format!(
 					"{}\n{}{}{}{}{}",
 					"if".yellow(),
-					condition.print(indent+1),
+					condition.print(indent + 1),
 					(indent1.to_string() + "if condition is true").blue(),
 					match true_branch {
-						Some(x) => "\n".to_string() + &x.print(indent+2),
+						Some(x) => "\n".to_string() + &x.print(indent + 2),
 						None => ", do nothing\n".blue().to_string(),
 					},
 					(indent1.to_string() + "if condition is false").blue(),
 					match false_branch {
-						Some(x) => "\n".to_string() + &x.print(indent+2),
+						Some(x) => "\n".to_string() + &x.print(indent + 2),
 						None => ", do nothing\n".blue().to_string(),
 					},
 				),
 				Stmt::Command(expression) => format!(
 					"{}\n{}",
 					"run command".yellow(),
-					expression.iter()
+					expression
+						.iter()
 						.map(|s| s.print(indent + 1))
-						.reduce(|a,b| format!("{}{}", a,b))
+						.reduce(|a, b| format!("{}{}", a, b))
 						.unwrap_or(String::new())
 				),
 				_ => panic!("Unknown statement????"),
