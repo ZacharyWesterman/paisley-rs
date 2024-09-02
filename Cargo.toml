@@ -11,3 +11,9 @@ colored = "2.1.0"
 plex = "0.3.1"
 regex = "1.10.6"
 structopt = "0.3.26"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
