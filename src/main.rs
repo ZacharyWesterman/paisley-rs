@@ -2,6 +2,7 @@ use std::fs;
 use std::io;
 use std::process::ExitCode;
 
+mod ast_debug;
 mod flags;
 mod lexer;
 mod message;
@@ -43,9 +44,12 @@ fn main() -> ExitCode {
 
 	let lexer = lexer::Lexer::new(&context);
 
-	// for (token, _span) in lexer.into_iter() {
-	// 	println!("{:?}", token);
-	// }
+	if options.output_tokens {
+		for (token, _span) in lexer.into_iter() {
+			println!("{:?}", token);
+		}
+		return ExitCode::SUCCESS;
+	}
 
 	//Read input, splitting into tokens as it's read.
 	let ast = match parser::parse(lexer) {
@@ -76,7 +80,10 @@ fn main() -> ExitCode {
 
 	let ast = ast.unwrap();
 
-	println!("{}", parser::pretty(&ast));
+	if options.output_ast {
+		println!("{}", ast);
+		return ExitCode::SUCCESS;
+	}
 
 	ExitCode::SUCCESS
 }

@@ -216,11 +216,11 @@ parser! {
 		//Conditionals
 		KwdIf expression[condition] KwdThen program[true_branch] conditional_else[false_branch] => Statement {
 			span: span!(),
-			node: Stmt::If(Box::new(condition), Some(Box::new(true_branch)), false_branch),
+			node: Stmt::If(Box::new(condition), if true_branch.stmts.len() == 0 { None } else { Some(Box::new(true_branch)) }, false_branch),
 		},
 		KwdIf expression[condition] KwdElse program[false_branch] KwdEnd => Statement {
 			span: span!(),
-			node: Stmt::If(Box::new(condition), None, Some(Box::new(false_branch))),
+			node: Stmt::If(Box::new(condition), None, if false_branch.stmts.len() == 0 { None } else { Some(Box::new(false_branch)) }),
 		},
 
 		KwdMatch expression[expr] KwdDo if_list[conditions] KwdElse program[no_match_branch] KwdEnd => Statement {
@@ -244,7 +244,7 @@ parser! {
 			stmts: vec![
 				Statement {
 					span: span!(),
-					node: Stmt::If(Box::new(condition), Some(Box::new(true_branch)), false_branch),
+					node: Stmt::If(Box::new(condition), if true_branch.stmts.len() == 0 { None } else { Some(Box::new(true_branch)) }, false_branch),
 				}
 			],
 		})),
@@ -255,7 +255,7 @@ parser! {
 		if_list[mut list] KwdIf expression[condition] KwdThen program[true_branch] KwdEnd => {
 			list.push(Statement {
 				span: span!(),
-				node: Stmt::If(Box::new(condition), Some(Box::new(true_branch)), None),
+				node: Stmt::If(Box::new(condition), if true_branch.stmts.len() == 0 { None } else { Some(Box::new(true_branch)) }, None),
 			});
 
 			list
@@ -612,23 +612,4 @@ pub fn parse<I: Iterator<Item = (Token, Span)>>(
 	i: I,
 ) -> Result<Program, (Option<(Token, Span)>, &'static str)> {
 	parse_(i)
-}
-
-#[cfg(debug_assertions)]
-use colored::Colorize;
-#[cfg(debug_assertions)]
-use regex::Regex;
-#[cfg(debug_assertions)]
-pub fn pretty(ast: &Program) -> String {
-	let fluff = Regex::new(r"\n *[\)\}\]],?").unwrap();
-	let spans = Regex::new(r"\n *(lo|hi)").unwrap();
-	let other = Regex::new(r"((Literal|Var)\()\n *([^\n]+)").unwrap();
-
-	let text = format!("{:#?}", ast).replace("    ", "  ");
-
-	let s1 = fluff.replace_all(&text, "");
-	let s2 = spans.replace_all(&s1, " $1");
-	let s3 = other.replace_all(&s2, "$1 $3".bold().yellow().to_string());
-
-	return s3.to_string();
 }
