@@ -1,0 +1,1 @@
+This is a proof of concept that, yes, I can parse a context-sensitive grammar in Rust. There are no further plans to continue this project; all work on Paisley will be done in the [main Paisley repo](https://github.com/ZacharyWesterman/paisley),
